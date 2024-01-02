@@ -1,0 +1,43 @@
+// v2_new --- 
+car_t* init_cars = NULL;
+GtkWidget* window;
+GtkWidget *mat_main, *mat_solve, *mat_answer;
+GtkWidget *mat_screen, *mat_ans_btn, *mat_sol_btn, *mat_menu;
+GtkWidget *btn_solve, *btn_answer, *btn_next, *btn_prev, *btn_exit, *btn_reset;
+GtkWidget *btn_auto, *btn_up, *btn_down, *btn_left, *btn_right;
+GtkWidget *label_info, *label_me;
+char main_color[20] = "#FF9797";  
+char btn_color[20] = "#F0EFEB";
+char colors[6][20] = {"#FFC8A2", "#FCEDBE","#C9E4D9", "#BDDAE6", "#ECD5E3", "#F8BBD0"};
+
+int selected_car_num = -1;
+const int ANSWER = 0, SOLVE = 1;
+const int UP = 3, DOWN = 4, LEFT = 1, RIGHT = 2;
+const int PREV = 0, NEXT = 1;
+char msg_info[128] = "";
+
+GdkPixbuf *create_pixbuf(const gchar * filename);
+void display_screen();
+void add_mat_solve();
+void add_mat_answer();
+void change_mode(GtkWidget *widget, gpointer md);
+void select_car(GtkWidget *widget, gpointer id);
+void move_car(GtkWidget *widget, gpointer cmd);
+void set_color(GtkWidget* widget, int color);
+void show_state(GtkWidget* widget, gpointer p);
+void exit_game(GtkWidget* widget);
+void reset_game(GtkWidget* widget);
+
+//TODO remove it for merging
+typedef struct DistNode{
+	struct DistNode *rink, *llink, *prev, *next;
+	car_t* state;
+} DistNode;
+DistNode* solution;
+DistNode* curr;
+void find_path(){
+	g_print("find path\n");
+}
+
+
+// --- v2_new

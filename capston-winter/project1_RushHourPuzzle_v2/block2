@@ -1,0 +1,329 @@
+
+// v2_new ---
+int main(int argc, char *argv []){
+	char buf[128] ;
+	int op ;
+	int id ;
+
+	printf("argc: %d\n", argc);
+
+	if(argc < 2){
+		printf("usage: ./game [board file]\n");
+		exit(EXIT_FAILURE);
+	}else{
+		strcpy(buf, argv[1]);
+		printf("loading board %s ...\n", buf);
+
+		if(load_game(buf)){
+			printf("[rushhourpuzzle] invalid file\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if(update_cells()){
+			printf("[rushhourpuzzle] invalid file\n");
+			fprintf(stderr, "[error] duplicated cars on cells\n");
+			exit(EXIT_FAILURE);
+		}
+		display();
+
+		
+				
+	}
+
+
+  gtk_init(&argc, &argv); //init GTK by args
+  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);//make window
+
+  //set the window
+  gtk_window_set_title(GTK_WINDOW(window), "rushhour v2");
+  gtk_window_set_default_size(GTK_WINDOW(window), 480, 720);
+  gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+  gtk_container_set_border_width(GTK_CONTAINER(window), 5);
+
+  //change the icon of page(for cuteness)
+  GdkPixbuf *icon = create_pixbuf("catIcon.png");
+  gtk_window_set_icon(GTK_WINDOW(window), icon);
+
+  //add widgets...
+  //set main matrix
+  mat_main = gtk_vbox_new(FALSE, 5);
+  gtk_container_add(GTK_CONTAINER(window), mat_main);
+
+  display_screen();
+
+  GtkWidget* line1 = gtk_hseparator_new();
+  GtkWidget* line2 = gtk_hseparator_new();
+  label_info = gtk_label_new(msg_info);
+  gtk_widget_set_size_request(label_info, 360, 32);
+  gtk_box_pack_start(GTK_BOX(mat_main), line1, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(mat_main), label_info, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(mat_main), line2, FALSE, FALSE, 0);
+
+  add_mat_solve();
+
+  gtk_widget_show_all(window); //is it dup with above
+  g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);//for termination
+  g_object_unref(icon);
+  gtk_main(); //enter the GTK main loop
+				
+}
+
+
+GdkPixbuf *create_pixbuf(const gchar * filename) {
+   GdkPixbuf *pixbuf;
+   GError *error = NULL;
+   pixbuf = gdk_pixbuf_new_from_file(filename, &error);
+   if (!pixbuf) {
+      fprintf(stderr, "%s\n", error->message);
+      g_error_free(error);
+   }
+   return pixbuf;
+}
+
+
+void display_screen(){
+
+  //set screen matrix
+  if(mat_screen == NULL) {
+  	mat_screen = gtk_table_new(6, 6, TRUE);
+  	gtk_table_set_row_spacings(GTK_TABLE(mat_screen), 2);
+  	gtk_table_set_col_spacings(GTK_TABLE(mat_screen), 2);
+    gtk_widget_set_size_request(mat_screen, 360, 320);
+  }else{
+	 gtk_container_foreach(GTK_CONTAINER(mat_screen), (GtkCallback)gtk_widget_destroy, NULL);
+  }
+  gtk_container_set_border_width(GTK_CONTAINER(mat_screen), 10);
+
+  GtkWidget *btn_tmp;
+  for(int i = 0; i < n_cars; i++){
+	gchar label_text[4];
+	g_snprintf(label_text, sizeof(label_text), "%d", cars[i].id);
+    btn_tmp = gtk_button_new_with_label(label_text);
+	set_color(btn_tmp, cars[i].id-2);
+	g_signal_connect(G_OBJECT(btn_tmp), "clicked", G_CALLBACK(select_car), &(cars[i].id));
+	gtk_table_attach_defaults(GTK_TABLE(mat_screen), btn_tmp, cars[i].x1, cars[i].x2+1, 5-cars[i].y1, 5-cars[i].y2+1);
+  }
+
+  gtk_container_add(GTK_CONTAINER(window), mat_screen);
+  gtk_box_pack_start(GTK_BOX(mat_main), mat_screen, TRUE, TRUE, 0);
+  gtk_widget_show_all(window);
+
+}
+
+
+
+void add_mat_solve(){
+
+  mat_solve = gtk_table_new(5, 4, TRUE);
+  gtk_container_add(GTK_CONTAINER(window), mat_solve);
+  gtk_table_set_row_spacings(GTK_TABLE(mat_solve), 5);
+  gtk_table_set_col_spacings(GTK_TABLE(mat_solve), 5);
+
+  btn_up = gtk_button_new_with_label("▲");
+  btn_down = gtk_button_new_with_label("▼");
+  btn_left = gtk_button_new_with_label("◀");
+  btn_right = gtk_button_new_with_label("▶");
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), btn_up, 1, 3, 0, 1);
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), btn_down, 1, 3, 2, 3);
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), btn_left, 0, 2, 1, 2);
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), btn_right, 2, 4, 1, 2);
+  g_signal_connect(G_OBJECT(btn_up), "clicked", G_CALLBACK(move_car), (gpointer*)&UP);
+  g_signal_connect(G_OBJECT(btn_down), "clicked", G_CALLBACK(move_car), (gpointer*)&DOWN);
+  g_signal_connect(G_OBJECT(btn_left), "clicked", G_CALLBACK(move_car), (gpointer*)&LEFT);
+  g_signal_connect(G_OBJECT(btn_right), "clicked", G_CALLBACK(move_car), (gpointer*)&RIGHT);
+  set_color(btn_up, -2);
+  set_color(btn_down, -2);
+  set_color(btn_left, -2);
+  set_color(btn_right, -2);
+
+  btn_answer = gtk_button_new_with_label("show answer 💡");
+  gtk_container_add(GTK_CONTAINER(window), btn_answer);
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), btn_answer, 0, 4, 3, 4); 
+  g_signal_connect(G_OBJECT(btn_answer), "clicked", G_CALLBACK(change_mode), (gpointer*)&ANSWER);
+  set_color(btn_answer, -2);
+ 
+  
+  mat_menu = gtk_table_new(4, 4, TRUE);
+  gtk_container_add(GTK_CONTAINER(window), mat_answer);
+  gtk_table_set_row_spacings(GTK_TABLE(mat_answer), 3);
+  gtk_table_set_col_spacings(GTK_TABLE(mat_answer), 3);
+  
+  btn_exit = gtk_button_new_with_label("exit");
+  btn_exit = gtk_button_new_with_label("reset");
+  gtk_table_attach_defaults(GTK_TABLE(mat_menu), btn_answer, 0, 2, 2, 4); 
+  gtk_table_attach_defaults(GTK_TABLE(mat_menu), btn_answer, 2, 4, 2, 4); 
+  g_signal_connect(G_OBJECT(btn_exit), "clicked", G_CALLBACK(exit_game), NULL);
+  g_signal_connect(G_OBJECT(btn_reset), "clicked", G_CALLBACK(reset_game), NULL);
+  set_color(btn_exit, -2);
+  set_color(btn_reset, -2);
+
+
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), mat_menu, 0, 2, 4, 5);
+
+
+  label_me = gtk_label_new("23-winter capston study#1 leeejjju");
+  gtk_container_add(GTK_CONTAINER(window), label_me);
+  gtk_misc_set_alignment(GTK_MISC(label_me), 1.0, 1.0);
+  gtk_table_attach_defaults(GTK_TABLE(mat_solve), label_me, 2, 4, 4, 5);
+
+  gtk_box_pack_start(GTK_BOX(mat_main), mat_solve, TRUE, TRUE, 0);
+
+
+} 
+
+void add_mat_answer(){
+
+  mat_answer = gtk_table_new(5, 4, TRUE);
+  gtk_container_add(GTK_CONTAINER(window), mat_answer);
+  gtk_table_set_row_spacings(GTK_TABLE(mat_answer), 5);
+  gtk_table_set_col_spacings(GTK_TABLE(mat_answer), 5);
+
+  btn_prev = gtk_button_new_with_label("◁ prev step");
+  btn_next = gtk_button_new_with_label("next step ▷");
+  gtk_table_attach_defaults(GTK_TABLE(mat_answer), btn_prev, 0, 2, 0, 3);
+  gtk_table_attach_defaults(GTK_TABLE(mat_answer), btn_next, 2, 4, 0, 3);
+  g_signal_connect(G_OBJECT(btn_prev), "clicked", G_CALLBACK(show_state), (gpointer*)&PREV);
+  g_signal_connect(G_OBJECT(btn_next), "clicked", G_CALLBACK(show_state), (gpointer*)&NEXT);
+  set_color(btn_prev, -2);
+  set_color(btn_next, -2);
+  
+  btn_solve = gtk_button_new_with_label("back to solve ✎");
+  gtk_container_add(GTK_CONTAINER(window), btn_solve);
+  gtk_table_attach_defaults(GTK_TABLE(mat_answer), btn_solve, 0, 4, 3, 4); 
+  g_signal_connect(G_OBJECT(btn_solve), "clicked", G_CALLBACK(change_mode), (gpointer*)&SOLVE);
+  set_color(btn_solve, -2);
+  
+  label_me = gtk_label_new("23-winter capston study#1 leeejjju");
+  gtk_container_add(GTK_CONTAINER(window), label_me);
+  gtk_misc_set_alignment(GTK_MISC(label_me), 1.0, 1.0);
+  gtk_table_attach_defaults(GTK_TABLE(mat_answer), label_me, 2, 4, 4, 5);
+
+  gtk_box_pack_start(GTK_BOX(mat_main), mat_answer, TRUE, TRUE, 0);
+  
+
+} 
+
+//get target mode
+void change_mode(GtkWidget* widget, gpointer md){
+	
+	int mode = *(int*)md;
+	if(mode == ANSWER){
+		strcpy(msg_info, "Changed mode to answer");
+
+		find_path();
+		curr = solution;
+
+		gtk_widget_destroy(mat_solve);
+		add_mat_answer();
+
+	}else if(mode == SOLVE){
+		strcpy(msg_info, "Changed mode to solve");
+
+		gtk_widget_destroy(mat_answer);
+		add_mat_solve();
+
+	}
+
+	g_print("this part is excuted...\n");
+	gtk_label_set(GTK_LABEL(label_info), msg_info);
+	gtk_widget_show_all(window);
+
+}
+
+void select_car(GtkWidget* widget, gpointer id){
+
+	int* p = (int*) id;
+	selected_car_num = *p;
+	sprintf(msg_info, "%d selected...", selected_car_num);
+	
+    gtk_label_set(GTK_LABEL(label_info), msg_info);
+	gtk_widget_show_all(window);
+
+}
+
+
+void move_car(GtkWidget *widget, gpointer cmd){
+
+	int* command = (int*) cmd;	
+	if(selected_car_num == -1){
+		strcpy(msg_info, "Please select the car first!");
+    	gtk_label_set(GTK_LABEL(label_info), msg_info);
+		gtk_widget_show_all(window);
+		return;
+	}
+
+	if(move(selected_car_num, *command)){
+		strcpy(msg_info, "Impossible movement!");
+		gtk_label_set(GTK_LABEL(label_info), msg_info);
+		gtk_widget_show_all(window);
+		return;
+	}
+	
+
+	if(update_cells()) {
+		strcpy(msg_info, "Impossible movement!");
+		gtk_label_set(GTK_LABEL(label_info), msg_info);
+		gtk_widget_show_all(window);
+		return;
+	}
+
+	display_screen();
+
+	if(cells[3][5] == 1){
+		strcpy(msg_info, " ･*..☆.'｡.:*.ദ്ദി ˃  ᴗ  ˂   ) *..☆'.｡.: { SUCCESS } ..☆.'｡.:*.ദ്ദി ❁ ´ ◡ ` ❁ ) )*..☆'.｡.:*.");
+		gtk_label_set(GTK_LABEL(label_info), msg_info);
+		gtk_widget_show_all(window);
+		//sleep(5);
+		//exit(EXIT_SUCCESS);
+	}else{
+		sprintf(msg_info, "Moved car %d to %s.", selected_car_num, op_str[*command]);
+    	gtk_label_set(GTK_LABEL(label_info), msg_info);
+	}
+	gtk_widget_show_all(window);
+
+}
+
+
+void set_color(GtkWidget* widget, int color){
+
+	GdkColor newColor;
+	if(color == -1) gdk_color_parse(main_color, &newColor);
+	else if(color == -2) gdk_color_parse(btn_color, &newColor);
+	else	gdk_color_parse(colors[color%6], &newColor);
+	gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &newColor);
+
+
+}
+
+//update curr, update cars by curr state, display_screen
+void show_state(GtkWidget* widget, gpointer p){
+
+	int to = *(int*)p;
+	if(to == NEXT) {
+		//curr = curr->next;
+		strcpy(msg_info, "Showing next step...");
+	}else if(to == PREV){
+		//curr = curr->prev;
+		strcpy(msg_info, "Showing previous step...");
+	}
+	//cars = curr->state;
+
+	if(update_cells()) strcpy(msg_info, "Impossible movement!");
+	
+
+	gtk_label_set(GTK_LABEL(label_info), msg_info);
+	gtk_widget_show_all(window);
+	display_screen();
+	return;
+}
+
+void exit_game(GtkWidget* widget){
+	exit(EXIT_SUCCESS);
+}
+
+void reset_game(GtkWidget* widget){
+	cars =	init_cars; 
+	update_cells();
+	display_screen();
+}
+
