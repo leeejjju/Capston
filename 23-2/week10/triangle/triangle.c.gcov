@@ -1,0 +1,68 @@
+        -:    0:Source:triangle.c
+        -:    0:Graph:triangle.gcno
+        -:    0:Data:triangle.gcda
+        -:    0:Runs:2
+        -:    0:Programs:1
+        -:    1:#include <stdio.h>
+        -:    2:#include <stdlib.h>
+        -:    3:
+        -:    4:int 
+        2:    5:main ()
+        -:    6:{
+        -:    7:	int a, b, c ;
+        -:    8:	int match ;
+        -:    9:
+        -:   10:/*	int * arr = calloc(sizeof(int), 10) ;
+        -:   11:	int i ;
+        -:   12:	scanf("%d", &i) ;
+        -:   13:	printf("%d\n", arr[i]) ;
+        -:   14:*/
+        2:   15:	scanf("%d %d %d", &a, &b, &c) ;
+        -:   16:
+        2:   17:	match = 0 ;
+        2:   18:	if (a == b)
+        1:   19:		match = match + 1 ;
+        2:   20:	if (a == c)
+        1:   21:		match = match + 2 ;
+        2:   22:	if (b == c)
+        1:   23:		match = match + 3 ;
+        -:   24:
+        2:   25:	if (match == 0) {
+        1:   26:		if ((a + b) <= c)
+    #####:   27:			printf("Not a triangle\n") ;
+        1:   28:		else if ((b + c) <= a)
+    #####:   29:			printf("Not a triangle\n") ;
+        1:   30:		else if ((a + c) <= b)
+    #####:   31:			printf("Not a triangle\n") ;
+        -:   32:		else
+        1:   33:			printf("Scalene\n") ;
+        -:   34:	}
+        1:   35:	else if (match == 1) {
+    #####:   36:		if ((a + c) <= b)
+    #####:   37:			printf("Not a triangle\n") ;
+        -:   38:		else 
+    #####:   39:			printf("Isosceles\n") ;
+        -:   40:	}
+        1:   41:	else if (match == 2) {
+    #####:   42:		if ((a + c) <= b)
+    #####:   43:			printf("Not a triangle\n") ;
+        -:   44:		else 
+    #####:   45:			printf("Isosceles\n") ;
+        -:   46:	}
+        1:   47:	else if (match == 3) {
+    #####:   48:		if ((b + c) <= a)
+    #####:   49:			printf("Not a triangle\n") ;
+        -:   50:		else
+    #####:   51:			printf("Isosceles\n") ;
+        -:   52:	}
+        1:   53:	else if (match < 0) {
+    #####:   54:		printf("unreachable\n") ;	
+        -:   55:	}
+        -:   56:	else {
+        1:   57:		printf("Equilateral\n") ;
+        -:   58:	}
+        -:   59:
+        2:   60:	exit(0) ;
+        -:   61:
+        -:   62:	return 0 ;
+        -:   63:}
