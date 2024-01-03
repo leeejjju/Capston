@@ -108,10 +108,13 @@ void test_set(){
 
 	map[1][0] = USER1;
 	map[0][0] = BASE1;
-
+	Model.user_locations = NULL;
 	Model.user_locations = malloc(sizeof(location_t)*NUM_PLAYER);
-	Model.user_loactions[0].x = 1;
-	Model.user_loactions[0].y = 0;
+	Model.user_locations[0].x = 1;
+	Model.user_locations[0].y = 0;
+
+	g_print("user location: %d,%d\n", Model.user_locations[0].x, Model.user_locations[0].y);
+	g_print("location %d,%d: %d\n", Model.user_locations[0].x, Model.user_locations[0].y, map[Model.user_locations[0].x][Model.user_locations[0].y]);
 
 
 /*
@@ -294,17 +297,15 @@ void display_screen(){
 		if (map[i][j] == EMPTY) continue;
 		switch(map[i][j]){
 			case BLOCK:
-				g_print("block...\n");
 				rand_index= rand() % 2;
       			sprite = gtk_image_new_from_pixbuf(icon_block[rand_index]); 
 				break;	
 			case ITEM:
-				g_print("item...\n");
 				rand_index= rand() % 12;
       			sprite = gtk_image_new_from_pixbuf(icon_fruit[rand_index]); 
 				break;	
 			default: //this case, user or base
-				g_print("user...\n");
+				g_print("user at [%d,%d]\n", i, j);
 				if(map[i][j] >= 10){ //base
 					int id = map[i][j]/10-1;
 					sprite = create_base(id);
@@ -354,8 +355,6 @@ void add_mat_board(){
   gtk_table_attach_defaults(GTK_TABLE(mat_main), mat_board, 9, 11, 1, 10);
  
 
-
-
 }
 
 void exit_game(GtkWidget* widget){
@@ -365,7 +364,8 @@ void exit_game(GtkWidget* widget){
 
 //swap two location's entry and update mat_screen
 void swap(int curr_x, int curr_y, int target_x, int target_y){
-/*	
+
+/*
 	GtkWidget *curr_entry = gtk_table_get_child(GTK_TABLE(mat_screen), curr_x, curr_y);
 	GtkWidget *target__entry = gtk_table_get_child(GTK_TABLE(mat_screen), target_x, target_y);
 
@@ -373,11 +373,13 @@ void swap(int curr_x, int curr_y, int target_x, int target_y){
     gtk_table_attach_defaults(GTK_TABLE(mat_screen), curr_entry, target_x, target_x + 1, target_y , target_y+1);
 
 	gtk_widget_show_all(mat_screen);
+	g_print("wanna swap...\n");
 */
 
-	g_print("wanna swap...\n");
-}
 
+
+
+}
 
 
 int check_validation(int cmd){
@@ -420,7 +422,6 @@ int check_validation(int cmd){
 			}else return 1;	
 			break;
 
-
 		case RIGHT:
 			if((target_x = (curr_x + 1)) > MAP_WIDTH) return 1;//out of array
 			if(map[target_x][target_y] == EMPTY) return 0; //empty
@@ -431,8 +432,8 @@ int check_validation(int cmd){
 			}else return 1;	
 			break;
 
-
 	}
+
 
 }
 
@@ -473,6 +474,9 @@ void move(int cmd){
 		swap(curr_x, curr_y, target_x, target_y);
 	}
 
+	//TODO update structure and map
+	g_print("moved~\n");
+
 }
 
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
@@ -501,7 +505,7 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 	//TODO temporary... need to move this to recv function
 	//move(cmd);
 	if(check_validation(cmd)) g_print("invalid movement!\n");
-	else g_print("moved widgets\n");
+	else move(cmd);
 
     return TRUE;
 }
