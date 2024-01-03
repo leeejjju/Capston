@@ -10,14 +10,23 @@
 #define SCORE_BOARD_WIDTH 64
 #define INFO_LABEL_LENGTH 16
 #define BUF_SIZE 128
+#define GDK_KEY_UP 65362
+#define GDK_KEY_DOWN 65364
+#define GDK_KEY_LEFT 65361
+#define GDK_KEY_RIGHT 65363
 
 int map[MAP_WIDTH][MAP_LENGTH]; //-1: empty, -2: block, -3 fruit, 0 >= users
 char msg_info[BUF_SIZE] = "";
-char username[BUF_SIZE] = "me";
+char my_username[BUF_SIZE] = "me";
 char buf[BUF_SIZE] = "";
+char all_usernames[NUM_PLAYER][BUF_SIZE];
 char score[NUM_PLAYER][BUF_SIZE];
 void load_game_info();
-enum entity = {
+void swap(int curr_x, int curr_y, int target_x, int target_y);
+int check_validation(int cmd);
+void move(int cmd);
+
+enum entity {
 	EMPTY = 0,
 	ITEM = -1,
 	BLOCK = -2,
@@ -30,7 +39,26 @@ enum entity = {
 	BASE3 = 30,
 	BASE4 = 40
 };
+enum spans {UP, DOWN, LEFT, RIGHT};
+int my_id = 0;
 
+typedef struct location{
+    int x;
+    int y;
+} location_t;
+
+typedef struct object_data{
+    int map_size;
+    int timeout;
+    int num_user;
+    location_t * base_loactions; 
+    location_t * user_locations; 
+    int num_item;
+    location_t * item_locations; 
+    int num_block;
+    location_t * block_locations;
+}object_data_t;
+object_data_t Model;
 
 //for GUI
 GtkWidget *window;
@@ -45,37 +73,61 @@ int load_icons();
 int check_map_valid();
 void set_window();
 GtkWidget *create_base(int id);
+static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
 void display_screen();
 void add_mat_board();
 void exit_game(GtkWidget* widget);
-char user_color[id][20] = {}
+char user_color[8][20] = {"#faa8a1", "#ffe479", "#dbe87c", "#dbe87c", "#dbe87c", "#dbe87c", "#c59365", "#f3ebde"};
 
 //for testing...
 void test_set(){
-	g_print(" ... test ... \n");
+	g_print(" ... test data loading ... \n");
+
 	for(int i = 0; i < NUM_PLAYER; i++){
 		sprintf(score[i], "user%d: %d", i, i+1);		
 		g_print("score%d -> %s\n", i, score[i]);
 	}
 	
-	for(int i = 0; i < MAP_WIDTH, i++){
+	for(int i = 0; i < MAP_WIDTH; i++){
 		for(int j = 0; j < MAP_LENGTH; j++){
 			map[i][j] = EMPTY;
 		}
 	}
-	
-	srand((unsigned int)time(NULL));
+
     int randx, randy;
 	for (int i = 0; i < 50; i++) {
-        randx = rand() % MAP_WIDTH+1;
-        randy = rand() % MAP_LENGTH+1;
-		map[ranx][randy] = BLOCK;
+        randx = rand() % MAP_WIDTH;
+        randy = rand() % MAP_LENGTH;
+		map[randx][randy] = BLOCK;
     }
 	for (int i = 0; i < 20; i++) {
-        randx = rand() % MAP_WIDTH+1;
-        randy = rand() % MAP_LENGTH+1;
-		map[ranx][randy] = ITEM;
+        randx = rand() % MAP_WIDTH;
+        randy = rand() % MAP_LENGTH;
+		map[randx][randy] = ITEM;
     }
+
+	map[1][0] = USER1;
+	map[0][0] = BASE1;
+
+	Model.user_locations = malloc(sizeof(location_t)*NUM_PLAYER);
+	Model.user_loactions[0].x = 1;
+	Model.user_loactions[0].y = 0;
+
+
+/*
+typedef struct object_data{
+    int map_size; TODO
+    int timeout; TODO
+    int num_user;
+    location_t * base_loactions; 
+    location_t * user_locations; 
+    int num_item;
+    location_t * item_locations; 
+    int num_block;
+    location_t * block_locations;
+}object_data_t;
+object_data_t Model;
+*/
 
 
 }
@@ -86,7 +138,7 @@ int main(int argc, char *argv[]) {
 	//TODO maybe need change to args
 	while(1){
 		printf("enter your name: ");
-		if((scanf("%s", username) != 1) || 0 /*TODO need another checking?*/){
+		if((scanf("%s", my_username) != 1) || 0 /*TODO need another checking?*/){
 			printf("invalid name. please pick another one.");	
 			continue;
 		}else break;
@@ -101,9 +153,12 @@ int main(int argc, char *argv[]) {
 	//set the testing data 
 	// TODO can be customize
 	test_set();
+	srand((unsigned int)time(NULL));
 
 	//set the GUI
 	gtk_init(&argc, &argv); //init GTK by args
+	 //key pressed
+    g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press), NULL);
 	set_window();
 
  	return 0;
@@ -171,7 +226,8 @@ void set_window(){
 
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);//make window
   g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);//for termination
-
+  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press), NULL);
+ 
   //set the window
   gtk_window_set_title(GTK_WINDOW(window), "pushpush HK");
 //  gtk_window_set_default_size(GTK_WINDOW(window), (MAP_WIDTH*CELL_SIZE)+SCORE_BOARD_WIDTH, (MAP_LENGTH*CELL_SIZE)+(INFO_LABEL_LENGTH*2));
@@ -210,12 +266,14 @@ void set_window(){
 GtkWidget *create_base(int id){
 
 	GtkWidget* base = gtk_event_box_new();
-	g_signal_connect(G_OBJECT(sprite), "expose-event", G_CALLBACK(draw_base), &id);
-	gtk_widget_set_size_request(sprite, 32, 32);		
+	//g_signal_connect(G_OBJECT(base), "expose-event", G_CALLBACK(draw_base), &id);
+	gtk_widget_set_size_request(base, 32, 32);		
 
 	GdkColor color;
-	gdk_color_parse(user_color[id], color);
+	gdk_color_parse(user_color[id], &color);
+	gtk_widget_modify_bg(base, GTK_STATE_NORMAL, &color);
 
+	return base;
 
 }
 
@@ -225,22 +283,29 @@ void display_screen(){
 
   //set screen matrix
   mat_screen = gtk_table_new(MAP_WIDTH, MAP_LENGTH, FALSE);
-  for (int i = 0; i <= MAP_WIDTH; i++) {
-    for (int j = 0; j <= MAP_LENGTH; j++) {
+  GdkColor bg;
+  gdk_color_parse("#96ba77", &bg);
+  gtk_widget_modify_bg(mat_screen, GTK_STATE_NORMAL, &bg);
+
+  for (int i = 0; i < MAP_WIDTH; i++) {
+    for (int j = 0; j < MAP_LENGTH; j++) {
 		int rand_index;
 		GtkWidget* sprite; 
 		if (map[i][j] == EMPTY) continue;
 		switch(map[i][j]){
 			case BLOCK:
+				g_print("block...\n");
 				rand_index= rand() % 2;
       			sprite = gtk_image_new_from_pixbuf(icon_block[rand_index]); 
 				break;	
 			case ITEM:
+				g_print("item...\n");
 				rand_index= rand() % 12;
       			sprite = gtk_image_new_from_pixbuf(icon_fruit[rand_index]); 
 				break;	
 			default: //this case, user or base
-				if(map >= 10){ //base
+				g_print("user...\n");
+				if(map[i][j] >= 10){ //base
 					int id = map[i][j]/10-1;
 					sprite = create_base(id);
 				}else{ //user
@@ -248,12 +313,11 @@ void display_screen(){
       				sprite = gtk_image_new_from_pixbuf(icon_player[rand_index]); 
 				}
 				break;
-
 		}
-		//TODO select random index with corresponding entity set
 		gtk_table_attach_defaults(GTK_TABLE(mat_screen), sprite, i, i+1, j, j+1);
     }
   }
+  g_print("done display screen\n");
   gtk_table_attach_defaults(GTK_TABLE(mat_main), mat_screen, 0, 9, 1, 10);
 
 }
@@ -266,7 +330,7 @@ void add_mat_board(){
   mat_board = gtk_vbox_new(FALSE, 20);
  
   GtkWidget* line1 = gtk_hseparator_new();
-  sprintf(buf, "Good luck, %s!", username);
+  sprintf(buf, "Good luck, %s!", my_username);
   label_name = gtk_label_new(buf);
   GtkWidget* sprite = gtk_image_new_from_pixbuf(icon_player[0]);
   GtkWidget* line2 = gtk_hseparator_new();
@@ -283,37 +347,163 @@ void add_mat_board(){
 	label_score[i] = gtk_label_new(score[i]);
 	gtk_container_add(GTK_CONTAINER(mat_board), label_score[i]);
   } 
- 
+
   btn_exit = gtk_button_new_with_label("exit game");
   gtk_container_add(GTK_CONTAINER(mat_board), btn_exit);
   g_signal_connect(G_OBJECT(btn_exit), "clicked", G_CALLBACK(exit_game), NULL);
   gtk_table_attach_defaults(GTK_TABLE(mat_main), mat_board, 9, 11, 1, 10);
+ 
+
 
 
 }
-
- 
 
 void exit_game(GtkWidget* widget){
 	printf("See you again!\n");
 	exit(EXIT_SUCCESS);
 }
 
+//swap two location's entry and update mat_screen
+void swap(int curr_x, int curr_y, int target_x, int target_y){
+/*	
+	GtkWidget *curr_entry = gtk_table_get_child(GTK_TABLE(mat_screen), curr_x, curr_y);
+	GtkWidget *target__entry = gtk_table_get_child(GTK_TABLE(mat_screen), target_x, target_y);
 
-gboolean draw_base(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+	gtk_table_attach_defaults(GTK_TABLE(mat_screen), target_entry, curr_x, curr_x + 1, curr_y , curr_y  + 1);
+    gtk_table_attach_defaults(GTK_TABLE(mat_screen), curr_entry, target_x, target_x + 1, target_y , target_y+1);
+
+	gtk_widget_show_all(mat_screen);
+*/
+
+	g_print("wanna swap...\n");
+}
+
+
+
+int check_validation(int cmd){
+	int user_idx = cmd/4;
+	int span = cmd%4;	
+	
+	int curr_x, curr_y, target_x, target_y, item_target_x, item_target_y;
+	curr_x = target_x = item_target_x = Model.user_locations[user_idx].x;
+	curr_y = target_y = item_target_y = Model.user_locations[user_idx].y;
+
+	switch(span){
+		case UP:		
+			if((target_y = (curr_y - 1)) < 0) return 1;//out of array
+			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			else if(map[target_x][target_y] == ITEM){ 
+				if((item_target_y = (target_y - 1)) < 0) return 1; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
+				else return 1;	//others (block, user, base)
+			}else return 1;	
+			break;
+
+		case DOWN:
+			if((target_y = (curr_y + 1)) > MAP_LENGTH) return 1;//out of array
+			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			else if(map[target_x][target_y] == ITEM){ 
+				if((item_target_y = (target_y + 1)) > MAP_LENGTH) return 1; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
+				else return 1;	//others (block, user, base)
+			}else return 1;	
+			break;
+
+
+		case LEFT:
+			if((target_x = (curr_x - 1)) < 0) return 1;//out of array
+			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			else if(map[target_x][target_y] == ITEM){ 
+				if((item_target_x = (target_x - 1)) < 0) return 1; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
+				else return 1;	//others (block, user, base)
+			}else return 1;	
+			break;
+
+
+		case RIGHT:
+			if((target_x = (curr_x + 1)) > MAP_WIDTH) return 1;//out of array
+			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			else if(map[target_x][target_y] == ITEM){ 
+				if((item_target_x = (target_x + 1)) > MAP_WIDTH) return 1; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
+				else return 1;	//others (block, user, base)
+			}else return 1;	
+			break;
+
+
+	}
+
+}
+
+//update cells by cmd(0-15), 
+//return 0 on validation of moving, return 1 on invalid moving
+//TODO 
+void move(int cmd){
+	int user_idx = cmd/4;
+	int span = cmd%4;	
+	
+	int curr_x, curr_y, target_x, target_y, item_target_x, item_target_y;
+	curr_x = target_x = item_target_x = Model.user_locations[user_idx].x;
+	curr_y = target_y = item_target_y = Model.user_locations[user_idx].y;
+
+	switch(span){
+		case UP:		
+			target_y = curr_y - 1;
+			item_target_y = target_y - 1;
+			break;	
+		case DOWN:
+			target_y = curr_y + 1;
+			item_target_y = target_y + 1;
+			break;	
+		case LEFT:
+			target_x = curr_x - 1;
+			item_target_x = target_x - 1;
+			break;	
+		case RIGHT:
+			target_x = curr_x + 1;
+			item_target_x = target_x - 1;
+			break;	
+	}
+	
+	if(map[target_x][target_y] == EMPTY){ //empty
+		swap(curr_x, curr_y, target_x, target_y);
+	}else if(map[target_x][target_y] == ITEM){ //item
+		swap(target_x, target_y, item_target_x, item_target_y);
+		swap(curr_x, curr_y, target_x, target_y);
+	}
+
+}
+
+gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
     
-	int id = *(int*)data;
-	cairo_t *cr = gdk_cairo_create(widget->window);
+	const gchar *greeting = NULL;
+	int cmd = my_id;
+    switch (event->keyval) {
+        case GDK_KEY_UP:
+            greeting = "up key pressed...";
+			cmd += 0;
+            break;
+        case GDK_KEY_DOWN:
+            greeting = "down key pressed...";
+			cmd += 1;
+            break;
+        case GDK_KEY_LEFT:
+            greeting = "left key pressed...";
+			cmd += 2;
+            break;
+        case GDK_KEY_RIGHT:
+            greeting = "right key pressed...";
+			cmd += 3;
+            break;
+    }
+    g_print("%s\n", greeting);
+	//TODO temporary... need to move this to recv function
+	//move(cmd);
+	if(check_validation(cmd)) g_print("invalid movement!\n");
+	else g_print("moved widgets\n");
 
-    cairo_set_source_rgb(cr, 1.0, 0.75, 0.8);
-
-    // Draw a rectangle
-    cairo_rectangle(cr, 0, 0, widget->allocation.width, widget->allocation.height);
-    cairo_fill(cr);
-
-    cairo_destroy(cr);
-
-    return FALSE;
+    return TRUE;
 }
 
 

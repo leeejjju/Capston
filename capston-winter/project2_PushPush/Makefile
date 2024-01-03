@@ -3,7 +3,7 @@ TEST = "test/map1.txt"
 make:
 	gcc -o game pushpush.c `pkg-config --libs --cflags gtk+-2.0`
 
-run:
+r:
 	./game
 future_run:
 	./game $(TEST)
