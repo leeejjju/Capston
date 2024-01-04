@@ -31,7 +31,7 @@ enum entity {
 	USER = 1, //user wil be 1 ~ 3
 	BASE = 9, //base will be 10 ~ 30
 };
-char user_color[8][20] = {"#faa8a1", "#ffe479", "#dbe87c", "#dbe87c", "#dbe87c", "#dbe87c", "#c59365", "#f3ebde"};
+char user_color[8][20] = {"#faa8a1", "#ffe479", "#dbe87c", "#a19b8b", "#ea9574", "#ffca79", "#c79465", "#e3dbcf"};
 enum spans {UP, DOWN, LEFT, RIGHT};
 
 typedef struct location{
@@ -54,12 +54,12 @@ object_data_t Model;
 
 //for GUI
 GtkWidget *window;
-GtkWidget *mat_main, *mat_screen, *mat_board, *label_info, *label_me, *mat_block, *fixed;
+GtkWidget *mat_main, *mat_changed_screen, *mat_board, *label_info, *label_me, *mat_fixed_screen, *mat_screen;
 GtkWidget *mat_ans_btn, *mat_sol_btn;
 GtkWidget *btn_solve, *btn_exit, *btn_next, *btn_prev;
 GtkWidget *btn_auto, *btn_up, *btn_down, *btn_left, *btn_right;
 GtkWidget *label_name, *label_score[NUM_PLAYER]; 
-GdkPixbuf *icon, *icon_block[2], *icon_fruit[10], *icon_player[NUM_PLAYER]; 
+GdkPixbuf *icon, *icon_block[2], *icon_fruit[11], *icon_player[NUM_PLAYER]; 
 GdkPixbuf *create_pixbuf(const gchar * filename);
 int load_icons();
 int check_map_valid();
@@ -227,8 +227,7 @@ void set_window(){
  
   //set the window
   gtk_window_set_title(GTK_WINDOW(window), "pushpush HK");
-  gtk_window_set_default_size(GTK_WINDOW(window), 512, 256);
-  //gtk_window_set_default_size(GTK_WINDOW(window), 1024, 512);
+  gtk_window_set_default_size(GTK_WINDOW(window), 1024, 512);
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width(GTK_CONTAINER(window), 5);
 
@@ -277,7 +276,7 @@ GtkWidget* create_entity(int id){
 	}else if(id > BASE){
 		idx = id/10 -1;
 		sprite = gtk_event_box_new();
-		gtk_widget_set_size_request(sprite, 32, 32);		
+		//gtk_widget_set_size_request(sprite, 32, 32);		
 		gdk_color_parse(user_color[idx], &color);
 		gtk_widget_modify_bg(sprite, GTK_STATE_NORMAL, &color);
 	}else{
@@ -293,37 +292,30 @@ GtkWidget* create_entity(int id){
 void display_screen(){
 
   //set screen matrix
-  if(mat_screen == NULL){ //initially once
-	fixed = gtk_fixed_new();
-	mat_screen = gtk_table_new(MAP_WIDTH, MAP_HEIGHT, TRUE);
-	mat_screen = gtk_table_new(MAP_WIDTH, MAP_HEIGHT, TRUE);
-	mat_block = gtk_table_new(MAP_WIDTH, MAP_HEIGHT, TRUE);
-	gtk_container_set_border_width(GTK_CONTAINER(mat_screen), 0);
-	gtk_container_set_border_width(GTK_CONTAINER(mat_block), 0);
+  if(mat_changed_screen == NULL){ //initially once
+	mat_screen = gtk_fixed_new();
+	mat_changed_screen = gtk_table_new(MAP_WIDTH, MAP_HEIGHT, TRUE);
+	mat_fixed_screen = gtk_table_new(MAP_WIDTH, MAP_HEIGHT, TRUE);
     for (int i = 0; i < MAP_WIDTH; i++) {
       for (int j = 0; j < MAP_HEIGHT; j++) {
 		if(map[i][j] != BLOCK) continue;
 		GtkWidget* sprite = create_entity(map[i][j]);
-		gtk_widget_set_size_request(sprite, 32, 32);		
-		if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_block), sprite, i, i+1, j, j+1);
+		if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_fixed_screen), sprite, i, i+1, j, j+1);
 		}
     }
-	gtk_fixed_put(GTK_FIXED(fixed), mat_screen, 0, 0);
-	gtk_fixed_put(GTK_FIXED(fixed), mat_block, 0, 0);
-
-  }else gtk_container_foreach(GTK_CONTAINER(mat_screen), (GtkCallback)gtk_widget_destroy, NULL); 
-
+	gtk_fixed_put(GTK_FIXED(mat_screen), mat_changed_screen, 0, 0);
+	gtk_fixed_put(GTK_FIXED(mat_screen), mat_fixed_screen, 0, 0);
+  }else gtk_container_foreach(GTK_CONTAINER(mat_changed_screen), (GtkCallback)gtk_widget_destroy, NULL); 
 
   for (int i = 0; i < MAP_WIDTH; i++) {
     for (int j = 0; j < MAP_HEIGHT; j++) {
 		if(map[i][j] == BLOCK) continue;
 		GtkWidget* sprite = create_entity(map[i][j]);
-		gtk_widget_set_size_request(sprite, 32, 32);		
-		if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_screen), sprite, i, i+1, j, j+1);
+		if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_changed_screen), sprite, i, i+1, j, j+1);
     }
   }
-  g_print("done display screen\n");
-  gtk_table_attach_defaults(GTK_TABLE(mat_main), fixed, 0, 9, 1, 10);
+
+  if(!gtk_widget_get_parent(mat_screen)) gtk_table_attach_defaults(GTK_TABLE(mat_main), mat_screen, 0, 9, 1, 10);
   gtk_widget_show_all(window); 
 
 }
@@ -491,7 +483,6 @@ void move(int cmd){
 	Model.user_locations[user_idx].y = target_y;
 
 	display_screen();
-	g_print("moved~\n");
 }
 
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
