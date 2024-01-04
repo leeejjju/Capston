@@ -15,12 +15,11 @@
 #define GDK_KEY_LEFT 65361
 #define GDK_KEY_RIGHT 65363
 
-
 int map[MAP_WIDTH][MAP_HEIGHT]; 
 char msg_info[BUF_SIZE] = "";
 char buf[BUF_SIZE] = "";
 char my_username[BUF_SIZE] = "me";
-int my_id = 0;
+int my_id = 2;
 char all_usernames[NUM_PLAYER][BUF_SIZE];
 char score[NUM_PLAYER];
 void load_game_info();
@@ -37,13 +36,12 @@ enum spans {UP, DOWN, LEFT, RIGHT};
 typedef struct location{
     int x;
     int y;
-} location_t;
-
+}location_t;
 typedef struct object_data{
     int map_size;
     int timeout;
-    int num_user;
-    location_t * base_loactions; 
+    int max_user;
+    location_t * base_locations; 
     location_t * user_locations; 
     int num_item;
     location_t * item_locations; 
@@ -70,62 +68,82 @@ void display_screen();
 void add_mat_board();
 void exit_game(GtkWidget* widget);
 int check_validation(int cmd);
-void move(int cmd);
+int move(int cmd, int movement);
 
-//for testing...
+void update_model(int id, int x, int y);
+void update_cell();
+int item_idxToId(int idx);
+int item_idToIdx(int id);
+void score_up(int user_idx);
+void gameover();
+
+
+int recv_bytes(int sock_fd, void * buf, size_t len);
+int send_bytes(int sock_fd, void * buf, size_t len);
+void handle_timeout(int signum);
+void *recv_msg(void * arg);
+
 void test_set(){
 	g_print(" ... test data loading ... \n");
 
+	Model.max_user = 4;
+	Model.user_locations = malloc(sizeof(location_t)*NUM_PLAYER);
+	Model.base_locations = malloc(sizeof(location_t)*NUM_PLAYER);
 	for(int i = 0; i < NUM_PLAYER; i++){
 		score[i] = 0;
 		strcpy(all_usernames[i], "user");
 		g_print("score of %s -> %d\n", all_usernames[i], score[i]);
-	}
 
-	
+	}
+	strcpy(all_usernames[my_id], my_username);	
+	Model.user_locations[0].x = 1;
+	Model.user_locations[0].y = 0;
+	Model.base_locations[0].x = 0;
+	Model.base_locations[0].y = 0;
+
+	Model.user_locations[1].x = MAP_WIDTH-2;
+	Model.user_locations[1].y = 0;
+	Model.base_locations[1].x = MAP_WIDTH-1;
+	Model.base_locations[1].y = 0;
+
+	Model.user_locations[2].x = 1;
+	Model.user_locations[2].y = MAP_HEIGHT-1;
+	Model.base_locations[2].x = 0;
+	Model.base_locations[2].y = MAP_HEIGHT-1;
+
+	Model.user_locations[3].x = MAP_WIDTH-2;
+	Model.user_locations[3].y = MAP_HEIGHT-2;
+	Model.base_locations[3].x = MAP_WIDTH-1;
+	Model.base_locations[3].y = MAP_HEIGHT-1;
+
+
+
+    int randx, randy;
 	for(int i = 0; i < MAP_WIDTH; i++){
 		for(int j = 0; j < MAP_HEIGHT; j++){
 			map[i][j] = EMPTY;
 		}
 	}
 
-    int randx, randy;
-	for (int i = 0; i < 50; i++) {
+	Model.num_block = 50;
+	Model.block_locations = malloc(sizeof(location_t)*Model.num_block);
+	for (int i = 0; i < Model.num_block; i++) {
         randx = rand() % MAP_WIDTH;
         randy = rand() % MAP_HEIGHT;
-		map[randx][randy] = BLOCK;
+		Model.block_locations[i].x = randx;
+		Model.block_locations[i].y = randy;
     }
-	for (int i = 0; i < 20; i++) {
+
+	Model.num_item = 20;
+	Model.item_locations = malloc(sizeof(location_t)*Model.num_item);	
+	for (int i = 0; i < Model.num_item; i++) {
         randx = rand() % MAP_WIDTH;
         randy = rand() % MAP_HEIGHT;
-		int item_id = rand() % 12;
-		item_id = (0 - item_id)*10;
-		map[randx][randy] = item_id;
+		Model.item_locations[i].x = randx;
+		Model.item_locations[i].y = randy;
     }
 
-	map[1][0] = my_id+1;
-	map[0][0] = (my_id+1)*10;
-	Model.user_locations = malloc(sizeof(location_t)*NUM_PLAYER);
-	Model.user_locations[my_id].x = 1;
-	Model.user_locations[my_id].y = 0;
-	strcpy(all_usernames[my_id], my_username);	
-
-
-/*
-typedef struct object_data{
-    int map_size; TODO
-    int timeout; TODO
-    int num_user;
-    location_t * base_loactions; 
-    location_t * user_locations; 
-    int num_item;
-    location_t * item_locations; 
-    int num_block;
-    location_t * block_locations;
-}object_data_t;
-object_data_t Model;
-*/
-
+	update_cell();
 
 }
 
@@ -298,18 +316,19 @@ void display_screen(){
 	mat_fixed_screen = gtk_table_new(MAP_WIDTH, MAP_HEIGHT, TRUE);
     for (int i = 0; i < MAP_WIDTH; i++) {
       for (int j = 0; j < MAP_HEIGHT; j++) {
-		if(map[i][j] != BLOCK) continue;
-		GtkWidget* sprite = create_entity(map[i][j]);
-		if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_fixed_screen), sprite, i, i+1, j, j+1);
-		}
+		if(map[i][j] == BLOCK || map[i][j] > BASE){
+			GtkWidget* sprite = create_entity(map[i][j]);
+			if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_fixed_screen), sprite, i, i+1, j, j+1);
+		}	
+	  }
     }
-	gtk_fixed_put(GTK_FIXED(mat_screen), mat_changed_screen, 0, 0);
 	gtk_fixed_put(GTK_FIXED(mat_screen), mat_fixed_screen, 0, 0);
+	gtk_fixed_put(GTK_FIXED(mat_screen), mat_changed_screen, 0, 0);
   }else gtk_container_foreach(GTK_CONTAINER(mat_changed_screen), (GtkCallback)gtk_widget_destroy, NULL); 
 
   for (int i = 0; i < MAP_WIDTH; i++) {
     for (int j = 0; j < MAP_HEIGHT; j++) {
-		if(map[i][j] == BLOCK) continue;
+		if(map[i][j] == BLOCK || map[i][j] > BASE) continue;
 		GtkWidget* sprite = create_entity(map[i][j]);
 		if(sprite != NULL) gtk_table_attach_defaults(GTK_TABLE(mat_changed_screen), sprite, i, i+1, j, j+1);
     }
@@ -371,51 +390,59 @@ int check_validation(int cmd){
 	int curr_x, curr_y, target_x, target_y, item_target_x, item_target_y;
 	curr_x = target_x = item_target_x = Model.user_locations[user_idx].x;
 	curr_y = target_y = item_target_y = Model.user_locations[user_idx].y;
-
 	switch(span){
 		case UP:		
-			if((target_y = (curr_y - 1)) < 0) return 1;//out of array
-			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			if((target_y = (curr_y - 1)) < 0) return 0;//out of array
+			if(map[target_x][target_y] == EMPTY) return 1; //empty
+			if(map[target_x][target_y] > BASE) return 1; //base
 			else if(map[target_x][target_y] < ITEM){ 
-				if((item_target_y = (target_y - 1)) < 0) return 1; //item and non-movabel
-				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
-				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return 0;
-				else return 1;	//others (block, user, base)
-			}else return 1;	
+				if((item_target_y = (target_y - 1)) < 0) return 0; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return map[target_x][target_y]; //item and movable
+				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return (0 - map[target_x][target_y]);
+				if(map[item_target_x][item_target_y] > BASE) return map[target_x][target_y]; //item and movable as other's base
+				else return 0;	//others (block, user, base)
+			}else return 0;	
 			break;
 
 		case DOWN:
-			if((target_y = (curr_y + 1)) > MAP_HEIGHT) return 1;//out of array
-			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			if((target_y = (curr_y + 1)) > MAP_HEIGHT) return 0;//out of array
+			if(map[target_x][target_y] == EMPTY) return 1; //empty
+			if(map[target_x][target_y] > BASE) return 1; //base
 			else if(map[target_x][target_y] < ITEM){ 
-				if((item_target_y = (target_y + 1)) > MAP_HEIGHT) return 1; //item and non-movabel
-				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
-				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return 0;
-				else return 1;	//others (block, user, base)
-			}else return 1;	
+				if((item_target_y = (target_y + 1)) > MAP_HEIGHT) return 0; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return map[target_x][target_y]; //item and movable
+				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return (0 - map[target_x][target_y]);
+				if(map[item_target_x][item_target_y] > BASE) return map[target_x][target_y]; //item and movable as other's base
+				else return 0;	//others (block, user, base)
+			}else return 0;	
 			break;
 
 
 		case LEFT:
-			if((target_x = (curr_x - 1)) < 0) return 1;//out of array
-			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			if((target_x = (curr_x - 1)) < 0) return 0;//out of array
+			if(map[target_x][target_y] == EMPTY) return 1; //empty
+			if(map[target_x][target_y] > BASE) return 1; //base
 			else if(map[target_x][target_y] < ITEM){ 
-				if((item_target_x = (target_x - 1)) < 0) return 1; //item and non-movabel
-				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
-				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return 0;
-				else return 1;	//others (block, user, base)
-			}else return 1;	
+				if((item_target_x = (target_x - 1)) < 0) return 0; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return map[target_x][target_y]; //item and movable
+				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return (0 - map[target_x][target_y]);
+				if(map[item_target_x][item_target_y] > BASE) return map[target_x][target_y]; //item and movable as other's base
+
+				else return 0;	//others (block, user, base)
+			}else return 0;	
 			break;
 
 		case RIGHT:
-			if((target_x = (curr_x + 1)) > MAP_WIDTH) return 1;//out of array
-			if(map[target_x][target_y] == EMPTY) return 0; //empty
+			if((target_x = (curr_x + 1)) > MAP_WIDTH) return 0;//out of array
+			if(map[target_x][target_y] == EMPTY) return 1; //empty
+			if(map[target_x][target_y] > BASE) return 1; //base
 			else if(map[target_x][target_y] < ITEM){ 
-				if((item_target_x = (target_x + 1)) > MAP_WIDTH) return 1; //item and non-movabel
-				if(map[item_target_x][item_target_y] == EMPTY) return 0; //item and movable
-				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return 0;
-				else return 1;	//others (block, user, base)
-			}else return 1;	
+				if((item_target_x = (target_x + 1)) > MAP_WIDTH) return 0; //item and non-movabel
+				if(map[item_target_x][item_target_y] == EMPTY) return map[target_x][target_y]; //item and movable
+				if((map[item_target_x][item_target_y] > BASE) && ((map[item_target_x][item_target_y]/10-1) == user_idx)) return (0 - map[target_x][target_y]);
+				if(map[item_target_x][item_target_y] > BASE) return map[target_x][target_y]; //item and movable as other's base
+				else return 0;	//others (block, user, base)
+			}else return 0;	
 			break;
 
 	}
@@ -424,16 +451,14 @@ int check_validation(int cmd){
 }
 
 //update cells by cmd(0-15), 
-//return 0 on validation of moving, return 1 on invalid moving
+//return 0 on normal moving, return 1 on get-score moving
 //TODO 
-void move(int cmd){
-	int user_idx = cmd/4;
-	int span = cmd%4;	
-	
+int move(int cmd, int movement){
+	int user_idx = cmd/Model.max_user;
+	int span = cmd%Model.max_user;	
 	int curr_x, curr_y, target_x, target_y, item_target_x, item_target_y;
 	curr_x = target_x = item_target_x = Model.user_locations[user_idx].x;
 	curr_y = target_y = item_target_y = Model.user_locations[user_idx].y;
-
 	switch(span){
 		case UP:		
 			target_y = curr_y - 1;
@@ -452,43 +477,24 @@ void move(int cmd){
 			item_target_x = target_x + 1;
 			break;	
 	}
-
-	int tmp;	
-	if(map[target_x][target_y] == EMPTY){ //empty
-		tmp = map[curr_x][curr_y];
-		map[curr_x][curr_y] = map[target_x][target_y];
-		map[target_x][target_y] = tmp;
-	}else if(map[target_x][target_y] < ITEM){ //item
-		if(map[item_target_x][item_target_y] > BASE){
-			map[target_x][target_y] = EMPTY;
-			score[user_idx] ++;
-			//TODO label_update
-			sprintf(msg_info, "%s got the score!", all_usernames[user_idx]);
-			gtk_label_set_text((GtkLabel*)label_info, msg_info);
-			sprintf(msg_info, "%s: %d", all_usernames[user_idx], score[user_idx]);
-			gtk_label_set_text((GtkLabel*)label_score[user_idx], msg_info);
-			
-		}else{
-			tmp = map[target_x][target_y];
-			map[target_x][target_y] = map[item_target_x][item_target_y];
-			map[item_target_x][item_target_y] = tmp;
-		}
-		tmp = map[curr_x][curr_y];
-		map[curr_x][curr_y] = map[target_x][target_y];
-		map[target_x][target_y] = tmp;
-
+	
+	if(movement < ITEM){ //valid and item-empty
+		g_print("move for item %d!!!\n", movement);	
+		update_model(movement, item_target_x, item_target_y);	
+	}else if(movement > (0-ITEM)){ //valid and item-scoreup
+		g_print("move for success %d!!!\n", movement);	
+		update_model(0-movement, -1, -1);	
+		score_up(user_idx);
+			if(-- Model.num_item <= 0) gameover();
 	}
+	update_model(user_idx+1, target_x,target_y);	
 
-	Model.user_locations[user_idx].x = target_x;
-	Model.user_locations[user_idx].y = target_y;
-
-	display_screen();
 }
 
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
     
 	const gchar *greeting = NULL;
-	int cmd = my_id;
+	int cmd = my_id*4;
     switch (event->keyval) {
         case GDK_KEY_UP:
             greeting = "up key pressed...";
@@ -507,14 +513,95 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 			cmd += 3;
             break;
     }
-    g_print("%s\n", greeting);
-	//TODO temporary... need to move this to recv function
-	//move(cmd);
-	if(check_validation(cmd)) g_print("invalid movement!\n");
-	else move(cmd);
 
-    return TRUE;
+	g_print("cmd: %d\n", cmd);
+
+	int movement;
+	if((movement = check_validation(cmd)) == 0) g_print("invalid movement!\n");
+	else{	//TODO place send() here, and move this code to recv();
+		move(cmd, movement);
+		display_screen();
+		g_print("%s\n", greeting);
+	}    
+
+	return TRUE;
 }
+
+void update_model(int id, int x, int y){
+
+	int idx;
+	if(id < ITEM){
+		idx = item_idToIdx(id);
+		Model.item_locations[idx].x = x;	
+		Model.item_locations[idx].y = y;	
+		g_print("item model updated\n");
+	}else{
+		idx = id - 1; 
+		Model.user_locations[idx].x = x;	
+		Model.user_locations[idx].y = y;	
+		g_print("user model updated\n");
+	}
+	update_cell();
+
+}
+
+void update_cell(){
+
+	//init
+	for(int i = 0; i < MAP_WIDTH; i++){
+		for(int j = 0; j < MAP_HEIGHT; j++){
+			map[i][j] = EMPTY;
+		}
+	}
+	int asdf = 0;
+	//base and user
+	for(int i = 0; i < NUM_PLAYER; i++){
+		int id = i+1;
+		map[Model.user_locations[i].x][Model.user_locations[i].y] = id;
+		map[Model.base_locations[i].x][Model.base_locations[i].y] = id*10;
+	}
+	//block
+	for (int i = 0; i < Model.num_block; i++) {
+		map[Model.block_locations[i].x][Model.block_locations[i].y] = BLOCK;
+    }
+	//item
+	for (int i = 0; i < Model.num_item; i++) {
+		int item_id = item_idxToId(i);
+		map[Model.item_locations[i].x][Model.item_locations[i].y] = item_id;
+    }
+
+}
+
+//0 -> -10
+int item_idxToId(int idx){
+	return ((0-(idx+1))*10);
+}
+
+//-10 -> 0
+int item_idToIdx(int id){
+	return (((0-id)/10)-1);
+}
+
+
+void score_up(int user_idx){
+	
+	score[user_idx] ++;
+	sprintf(msg_info, "%s got the score!", all_usernames[user_idx]);
+	g_print("%s got the score!\n", all_usernames[user_idx]);
+	gtk_label_set_text((GtkLabel*)label_info, msg_info);
+	sprintf(msg_info, "%s: %d", all_usernames[user_idx], score[user_idx]);
+	gtk_label_set_text((GtkLabel*)label_score[user_idx], msg_info);
+
+}
+
+void gameover(){
+	
+	sprintf(msg_info, "GAME OVER");
+	g_print("GAME OVER\n");
+	gtk_label_set_text((GtkLabel*)label_info, msg_info);
+
+}
+
 
 
 
