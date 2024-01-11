@@ -65,9 +65,9 @@ int pthread_mutex_lock(pthread_mutex_t* mutex){
 		stack = backtrace_symbols(arr, sz);
 		snprintf(buf, BUF_SIZE, "#%s",stack[1]);
 		for (int i = 0 ; i < BUF_SIZE;) i += write(fd, buf + i, BUF_SIZE) ;
+
 		close(fd);
 		unlock_cp(&mtx);
-
 
 	}
 

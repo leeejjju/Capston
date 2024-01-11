@@ -25,7 +25,6 @@ void *func1(void *arg) {
 
     while (1) {
         pthread_mutex_lock(&mtx1);
-		sleep(interval);
         pthread_mutex_lock(&mtx2);
 
         shared1++;
