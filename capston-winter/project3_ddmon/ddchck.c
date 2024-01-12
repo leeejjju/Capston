@@ -36,6 +36,45 @@ edge_t * edge_head = NULL;
 edge_t * edge_tail = NULL;
 char target[20];
 
+//show_and_free_threads: print and free all the threads and mutexs it has
+void show_and_free_threads(){
+	
+	printf(">> current thread state...\n");
+
+	thread_t* thread_next = thread_head;
+	thread_t* thread_tmp;
+
+	while(thread_next != NULL){
+		
+		printf("	thread [%lu]\n", thread_next->t_id);
+		mutex_t* mutex_next = thread_next->mutex_head;
+		mutex_t* mutex_tmp;
+
+		while(mutex_next != NULL){
+			printf("		lock: mutex (%lu)\n", mutex_next->m_id);
+
+			mutex_tmp = mutex_next;
+			mutex_next = mutex_next->next;
+			free(mutex_tmp);
+		}
+		printf("\n");
+
+		thread_tmp = thread_next;
+		thread_next = thread_next->next;
+		free(thread_tmp);
+	}
+
+	thread_head = NULL;
+	return;
+
+}
+//quit: exit when Ctrl+C is pressed
+void quit(){
+	printf("\n\n");
+	if(thread_head != NULL) show_and_free_threads();
+	exit(EXIT_SUCCESS);
+}
+
 //makeFIFO: make FIFO and open, return its fd. need to close fd after use it.
 int makeFIFO(){
 	if(mkfifo(".ddtrace", 0666)){
@@ -48,8 +87,8 @@ int makeFIFO(){
 	return fd;
 }
 
-//print_linenum: parse and print backtraced info as linenum - return linenum
-int print_linenum(int fd, char* backtrace_info){
+//get_linenum: parse and print backtraced info as linenum - return linenum
+int get_linenum(int fd, char* backtrace_info){
 
 	char buf[128];
 	int *pc;
@@ -77,7 +116,6 @@ int print_linenum(int fd, char* backtrace_info){
 //insertMutex: insert mutex node to input thread's linked list
 void insertMutex(thread_t * thread, unsigned long m_id) {
     mutex_t* newMutex = (mutex_t*)malloc(sizeof(mutex_t));
-    // printf("%lu\n",newData);
     newMutex->m_id = m_id;
     newMutex->next = NULL;
 
@@ -147,12 +185,9 @@ int is_cycle_exist()
             if(mutex_temp->next != NULL)
             {
                 edge_t edge = {mutex_temp->m_id, mutex_temp->next->m_id};
-                // printf("edge start : %lu edge end : %lu\n",edge.start, edge.end);
 
-                // int dup_flag = 0;
                 for(int i=0; i<edge_count; i++)
                 {
-                    // printf("visit start : %lu visit end : %lu\nedge start : %lu edge end : %lu\n",visited[i].start, visited[i].end, edge.start, edge.end);
                     
                     //cycle
                     if(((visited[i].start == edge.start) && (visited[i].end == edge.end)) || ((visited[i].start == edge.end) && (visited[i].end == edge.start)))
@@ -258,49 +293,12 @@ void mutex_unlock(unsigned long t_id, unsigned long m_id)
 
 }
 
-//print_current: print the thread information from input thread to last thread
-void print_thread_info(int sig)
-//void print_current(thread_t * thread_start)
-{
-    thread_t * thread_temp = thread_head;
-    
-    while(1)
-    {
-        fprintf(stderr,"thread%lu has ",thread_temp->t_id);
-
-        mutex_t * mutex_temp = thread_temp->mutex_head;
-        if(mutex_temp == NULL)
-        {   
-            fprintf(stderr,"\n");
-            if(thread_temp -> next == NULL)
-                break;
-            thread_temp = thread_temp -> next;
-            continue;
-        }
-        while(1)
-        {
-            fprintf(stderr,"%lu ",mutex_temp->m_id);
-
-            if(mutex_temp->next == NULL)
-                break;
-            mutex_temp = mutex_temp->next;
-        }
-
-        fprintf(stderr,"\n");
-
-        if(thread_temp -> next == NULL)
-            break;
-        thread_temp = thread_temp -> next;
-    }
-
-	exit(EXIT_SUCCESS);
-}
-
 void print_deadlock_alert(int linenum){
 
-	printf("\n================================\n\n");
-	printf("    DEADLOCK OCCURED at line %d!!\n\n", linenum);
-	printf("\n================================\n\n");
+	printf("\n=================================================\n\n");
+	printf("          DEADLOCK OCCURED AT LINE %d!!\n", linenum);
+	printf("\n=================================================\n\n");
+	show_and_free_threads();
 
 }
 
@@ -310,7 +308,8 @@ int main(int argc, char* argv[]){
 	if (argc > 1) strcpy(target, argv[1]);
 	else printf("[usage] ./ddchck [target.out]\n");
 
-	signal(SIGINT, print_thread_info);
+	//signal(SIGINT, print_thread_info);
+	signal(SIGINT, quit);
 
 	//make and open FIFO
 	unsigned long mutex_lu, thread_lu;
@@ -318,22 +317,21 @@ int main(int argc, char* argv[]){
 	int cnt = 0;
 	remove("./.ddtrace");
 
-		int fd = makeFIFO();
+	int fd = makeFIFO();
 	//get information from FIFO and lock or unlock mutex
 	while(1){
 		
 		char s[128];
 		char cmd[128];
 		int  len;
-		/*
-*/
+		
 		if((len = read(fd, s, 128)) == -1) break;
 		if(len > 0){
 			if(s[0] == '#') {
 				if(!strcmp(cmd, "lock")) {
 					printf("[%lu] lock accuired   : %lu\n", thread_lu, mutex_lu);
 					mutex_lock(thread_lu, mutex_lu);
-					if(is_cycle_exist()) print_deadlock_alert(print_linenum(fd, s));
+					if(is_cycle_exist()) print_deadlock_alert(get_linenum(fd, s));
 				}else{
 					printf("[%lu] unlock accuired : %lu\n", thread_lu, mutex_lu);
 					mutex_unlock(thread_lu, mutex_lu);
@@ -342,37 +340,9 @@ int main(int argc, char* argv[]){
 				sscanf(s, "[%lu] %s mutex from %lu", &mutex_lu, cmd, &thread_lu);
 			}	
 		}
-		//if(cnt++ > 10) break;
-    //mutex_lock(1,cnt++);
-    //print_current(thread_head);
-		//if(remove(".ddtrace") != 0) perror("unlink FIFO:");
 	}
 
-		close(fd);
-	//lock -> mutex_lock -> is_cycle_exist -> print linenum
-	//unlock ->mutex_unlock
-
-	//close FIFO
-
-/*
-    mutex_lock(140057917003520,94236090622048);
-    mutex_lock(140057917003520,94236090622049);
-    mutex_unlock(140057917003520,94236090622048);
-    mutex_unlock(140057917003520,94236090622049);
-
-    mutex_lock(12341234123412,94236090622048);
-
-    print_current();
-
-    if(is_cycle_exist()) fprintf(stderr,"deadlock\n");
-    else fprintf(stderr,"no problem :)\n");
-
-
-*/
-	printf("done..\n");
-
+	close(fd);
 	return 0;
 }
-
-
 
