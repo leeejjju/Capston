@@ -10,7 +10,6 @@
 
 int shared1 = 0, shared2 = 0;
 pthread_mutex_t mtx1 = PTHREAD_MUTEX_INITIALIZER, mtx2 = PTHREAD_MUTEX_INITIALIZER;
-int interval = 0;
 
 
 void quit(int sig){
@@ -25,6 +24,7 @@ void *func1(void *arg) {
 
     while (1) {
         pthread_mutex_lock(&mtx1);
+		sleep(1);
         pthread_mutex_lock(&mtx2);
 
         shared1++;
@@ -42,6 +42,7 @@ void *func2(void *arg) {
 
     while (1) {
         pthread_mutex_lock(&mtx2);
+		sleep(1);
         pthread_mutex_lock(&mtx1);
 
         shared1++;
@@ -64,13 +65,6 @@ int main() {
 	printf("wanna make deadlock? (y/n)\n");
 	scanf("%c", &ans);
 	flag = (ans == 'y')? 1 : 0;
-
-/*	
-	void* arr[3];
-	size_t n = backtrace(arr, 3);
-	printf("%p\n", arr[0]);
-	exit(0);
-*/
 
 	if(flag){
 		if (pthread_create(&thread1, NULL, func1, (void *)&id1) != 0 || pthread_create(&thread2, NULL, func2, (void *)&id2) != 0) {

@@ -44,13 +44,6 @@ int pthread_mutex_lock(pthread_mutex_t* mutex){
 	n_lock += 1;
 
 	if(lock_cp == NULL) init_real_one();
-	/*j
-	int (*lock_cp)(pthread_mutex_t* mutex);
-	char* error;
-	lock_cp = dlsym(RTLD_NEXT, "pthread_mutex_lock");
-	if((error = dlerror()) != 0x0) exit(1);
-	*/
-	int rtn = lock_cp(mutex);
 
 	if(n_lock == 1){
 		lock_cp(&mtx);
@@ -72,7 +65,7 @@ int pthread_mutex_lock(pthread_mutex_t* mutex){
 	}
 
 	n_lock -= 1;
-	return rtn;
+	return lock_cp(mutex);
 
 }
 
@@ -82,13 +75,6 @@ int pthread_mutex_unlock(pthread_mutex_t* mutex){
 	n_unlock += 1;
 
 	if(unlock_cp == NULL) init_real_one();
-	/*j
-	int (*lock_cp)(pthread_mutex_t* mutex);
-	char* error;
-	lock_cp = dlsym(RTLD_NEXT, "pthread_mutex_lock");
-	if((error = dlerror()) != 0x0) exit(1);
-	*/
-	int rtn = unlock_cp(mutex);
 
 	if(n_unlock == 1){
 		lock_cp(&mtx);
@@ -110,7 +96,7 @@ int pthread_mutex_unlock(pthread_mutex_t* mutex){
 	}
 
 	n_unlock -= 1;
-	return rtn;
+	return unlock_cp(mutex);
 
 }
 
