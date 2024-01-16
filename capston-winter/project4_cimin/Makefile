@@ -2,15 +2,19 @@ CC = gcc
 .PHONY: r rt rx rb test libxml jsmn balance clean
 
 compile:
-	$(CC) cimin.c -o run -DDEBUG
+	$(CC) cimin.c -o run
 	$(CC) test.c -o test
+
+d:
+	$(CC) cimin.c -o run -DDEBUG
 
 #run with test input
 r: 
-	./run -i test_crash -m "Hello" -o reduced test 0
+	./run -i test_crash -m "JJ" -o reduced test 0
+
 #run with test input : timeout case
 rt:
-	./run -i test_crash -m "Hello" -o reduced test 4
+	./run -i test_crash -m "JJ" -o reduced test 4
 
 #run with libxml2
 rx:
@@ -31,6 +35,10 @@ jsmn:
 	target/jsmn/jsondump < target/jsmn/testcases/crash.json
 balance:
 	target/balance/balance < target/balance/testcases/fail
+libpng:
+	target/libpng/libpng/test_pngfix < target/libpng/crash.png
+	#cd /target/libpng$
+	#./libpng/test_pngfix < crash.png
 
 clean:
 	rm -f run test
