@@ -23,6 +23,10 @@ int args_size= 0;
 char *args[16];
 pid_t pid = -1;
 
+int origin_size = 0;
+int tm_size = 0;
+char* tm = NULL;
+
 //timeout: signal handler for SIGALARM
 void timeout(int sig){
 	fprintf(stderr, "timeout occured!\n");
@@ -33,6 +37,7 @@ void timeout(int sig){
 //quit: signal handler for SIGINT
 void quit(int sig){
 	fprintf(stderr, "program terminate...\n");
+	printf("cimin: %s \n(%d) -> (%d)\n", tm, origin_size, tm_size);
 	exit(EXIT_SUCCESS);
 }
 
@@ -121,7 +126,7 @@ int is_crashed(char* crash, int size){
 		//read output from child stderr
 		char buf[BUF_SIZE];
 		int len, error;
-		while((len = read(c2p[READ], buf, BUF_SIZE)) > 0){
+		while((len = read(c2p[READ], buf, BUF_SIZE-1)) > 0){
 			buf[len] = 0;
 			debug(printf("\nparents recv: %s\n", buf););
 			//determine if error keyword we find is exist
@@ -141,9 +146,7 @@ int is_crashed(char* crash, int size){
 		//redirect some std pipes to our unnamed pipes
 		dup2(p2c[READ], STDIN_FILENO);
 		dup2(c2p[WRITE], STDERR_FILENO);
-		//also wanna remove stdout prints...
-		int tmp;
-		dup2(tmp, STDOUT_FILENO); 
+		close(STDOUT_FILENO); 
 
 		char buf[BUF_SIZE];
 		execv(target, args);
@@ -168,43 +171,48 @@ int is_crashed(char* crash, int size){
 int make_substr(char* src, char* dest, int start, int end){
 	
 	int index = 0;
-	for(int i = start; i < end; i++){
-		dest[index++] = src[i];
-	}
+	for(int i = start; i < end; i++) dest[index++] = src[i];
 	dest[index] = 0;
 	return index;
 
 }
 
+char* cat_strings(char* first, char* second, int firstsize, int secondsize){
+
+	
+
+}
+
 //reduce: reduce crash input and return it
-char* reduce(char* tm, int len){
+char* reduce(char* origin, int len){
 
 	//TODO idk if its right...
 	char head[BUF_SIZE], tail[BUF_SIZE], mid[BUF_SIZE];
+	tm = origin;
+	tm_size = len;
 
 	int s = len - 1;
 	while(s > 0){	
-		debug(printf("\n## src: %s (%d)\n", tm, s););
+		debug(printf("\n## src: %s (%d)\n", origin, s););
 		for(int i = 0; i <= (len - s); i++){
 
-			int headlen = make_substr(tm, head, 0, i);
-			int taillen = make_substr(tm, tail, (s+i), len);
+			int headlen = make_substr(origin, head, 0, i);
+			int taillen = make_substr(origin, tail, (s+i), len);
 			debug(printf("%d)\n	head : %s \n	tail: %s\n", i, head, tail););
-			strcat(head, tail);
 			if(head[0] == 0) continue;
 			debug(printf("	meow: %s\n", head););
 			if(is_crashed(strcat(head, tail), headlen+taillen)) return reduce(head, headlen+taillen);
 		}
 		for(int i = 0; i <= (len - s); i++){
-			int midlen = make_substr(tm, mid, i, (i+s));
+			int midlen = make_substr(origin, mid, i, (i+s));
 			if(mid[0] == 0) continue;
 			debug(printf("	mid: %s\n", mid););
 			if(is_crashed(mid, midlen)) return reduce(mid, midlen);
 		}
-		//return tm;
+		//return origin;
 		s--;
 	}
-	return tm;
+	return origin;
 
 }
 
@@ -212,7 +220,6 @@ char* reduce(char* tm, int len){
 int main(int argc, char *argv[]) {
 	
 	char buf[BUF_SIZE];
-	char tm[BUF_SIZE];
 
 	parseArgs(argc, argv);
 	signal(SIGALRM, timeout);
@@ -220,19 +227,11 @@ int main(int argc, char *argv[]) {
 
 	//get initial crash input
 	int fd = open(input, O_RDONLY);
-	int len = 0;
-	len = read(fd, buf, BUF_SIZE);
-	if(buf[len-2] == '\n') buf[(len--)-2] = 0;
+	origin_size = read(fd, buf, BUF_SIZE);
+	if(buf[origin_size-2] == '\n') buf[(origin_size--)-2] = 0;
 
-	strcpy(tm, reduce(buf, len));
-	printf("CIMIN: %s\n", tm);
-
-	/*
-	//TODO check if still crash occured
-	if(is_crashed(tm, len)) printf("crash occred!!\n");
-	else printf("everything is find\n");
-	*/
-
+	printf("CIMIN: %s \n", reduce(buf, origin_size));
+	printf("cimin: %s \n(%d) -> (%d)\n", tm, origin_size, tm_size);
 
     return 0;
 }
