@@ -30,6 +30,7 @@ unsigned char* tm = NULL;
 int LETMESEE = 0;
 
 
+
 void print(unsigned char* string, int len){
 	for(int i = 0; i < len; i++) printf("%c", string[i]);
 }
@@ -209,22 +210,22 @@ unsigned char* cat_strings(unsigned char* first, unsigned char* second, int firs
 }
 
 
+
 //reduce: reduce crash input and return it
 unsigned char* reduce(unsigned char* origin, int len){
 
 	//TODO idk if its right...
-	unsigned char head[BUF_SIZE], tail[BUF_SIZE], mid[BUF_SIZE];
 	/*
-	unsigned char *head = (unsigned char*)malloc(sizeof(unsigned char)*len);
-	unsigned char *tail = (unsigned char*)malloc(sizeof(unsigned char)*len);
-	unsigned char *min = (unsigned char*)malloc(sizeof(unsigned char)*len);
+	unsigned char head[BUF_SIZE], tail[BUF_SIZE], mid[BUF_SIZE];
 	*/
+	unsigned char *head = (unsigned char*)malloc(sizeof(unsigned char)*len + 1);
+	unsigned char *tail = (unsigned char*)malloc(sizeof(unsigned char)*len + 1);
+	unsigned char *mid = (unsigned char*)malloc(sizeof(unsigned char)*len + 1);
 
 	debug(printf("start to reduce size %d...\n", len););
 	printf("start to reduce size %d...\n", len);
 	save_result_as_file();
-	const int POINT = 1729;
-
+	//const int POINT = 1729;
 
 	int s = len - 1;
 	//if(s < POINT) LETMESEE = s;
@@ -244,9 +245,13 @@ unsigned char* reduce(unsigned char* origin, int len){
 			if(headlen+taillen == 0) continue;
 			debug(printf("	meow: %s\n", head););
 			if(is_crashed(head, headlen+taillen)){
-				tm = origin;
-				tm_size = len;
-			
+				tm = head;
+				tm_size = headlen+taillen;
+				/*
+				*/
+				free(tail);
+				free(mid);
+				free(origin);
 				return reduce(head, headlen+taillen);
 			}
 	if(LETMESEE) printf("	check if crashed...\n");
@@ -257,9 +262,13 @@ unsigned char* reduce(unsigned char* origin, int len){
 			if(midlen == 0) continue;
 			debug(printf("	mid: %s\n", mid););
 			if(is_crashed(mid, midlen)){
-				tm = origin;
-				tm_size = len;
-			
+				tm = mid;
+				tm_size = midlen;
+				/*
+				*/
+				free(head);
+				free(tail);
+				free(origin);
 				return reduce(mid, midlen);
 			}
 		}
@@ -271,7 +280,8 @@ unsigned char* reduce(unsigned char* origin, int len){
 
 //this is MAIN
 int main(int argc, char *argv[]) {
-	unsigned char buf[BUF_SIZE];
+//	unsigned char buf[BUF_SIZE];
+	unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char) * BUF_SIZE + 1);
 
 	parseArgs(argc, argv);
 	signal(SIGALRM, timeout);
@@ -282,14 +292,10 @@ int main(int argc, char *argv[]) {
 	origin_size = read(fd, buf, BUF_SIZE);
 	if(buf[origin_size-2] == '\n') buf[(origin_size--)-2] = 0;
 
-/*
-	unsigned char* origin = (unsigned char*) malloc(sizeof(unsigned char) * origin_size + 1);
-	tm = origin;
+	tm = buf;	
 	tm_size = origin_size;
-	reduce(origin, origin_size);
-*/
-
 	reduce(buf, origin_size);
+
 	make_result();
     return 0;
 }

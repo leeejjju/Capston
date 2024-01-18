@@ -1,5 +1,5 @@
 CC = gcc
-.PHONY: r rt rx rb test libxml jsmn balance clean
+.PHONY: r rt rx rb rp rc rr ro test libxml jsmn balance libpng clean
 
 compile:
 	$(CC) cimin.c -o run
@@ -50,7 +50,7 @@ jsmn:
 balance:
 	target/balance/balance < target/balance/testcases/fail
 libpng:
-	target/libpng/libpng/test_pngfix < target/libpng/crash.png
+	libpng/test_pngfix < crash.png
 
 clean:
 	rm -f run test
