@@ -20,6 +20,8 @@ rt:
 
 #run with libxml2
 rx:
+	cp target/libpng/crash.png .
+	cp target/libpng/libpng . -r
 	./run -i target/libxml2/testcases/crash.xml -m "SEGV" -o reduced "target/libxml2/xmllint --recover --postvalid -"
 #run with jsmn
 rj:
@@ -50,6 +52,8 @@ jsmn:
 balance:
 	target/balance/balance < target/balance/testcases/fail
 libpng:
+	cp target/libpng/crash.png .
+	cp target/libpng/libpng -r .
 	libpng/test_pngfix < crash.png
 
 clean:
