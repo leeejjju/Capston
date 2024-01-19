@@ -1,14 +1,32 @@
-CC = gcc
+CC = ./AFLplusplus/afl-gcc
+FZ = ./AFLplusplus/afl-fuzz 
+OUTPUT = fuzz-outputs/
 .PHONY: r rt rx rb rp rc rr ro test libxml jsmn balance libpng clean
 
 compile:
 	$(CC) cimin.c -o run
 	$(CC) test.c -o test
-	cp run target/libpng
 
+
+#compile with debug option
 d:
 	$(CC) cimin.c -o run -DDEBUG
 	cp run target/libpng
+
+# FUZZING=============================================================================
+
+#compile 
+fj:
+	$(FZ) -i target/jsmn/testcases -o $(OUTPUT)/jsmn ./target/jsmn/jsondump ./target/jsmn/testcases
+
+fx:
+	$(FZ) -i target/libxml2/$() -o $(OUTPUT)/libxml ./target/libxml/$() ./target/libxml2/
+
+fp:
+	$(FZ) -i target/jsmn/testcases -o $(OUTPUT)/libpng ./target/jsmn/jsondump ./target/jsmn/testcases
+
+
+# ====================================================================================
 
 #run with test input
 r: 

@@ -1,0 +1,10 @@
+{
+  "name": "jsmn",
+  "krds": "json",
+  "descts"{
+    "type": "git", "url": "httgit"
+  }"frarks": "*",
+  [
+    "*.c"
+  ]"exc": ""
+}

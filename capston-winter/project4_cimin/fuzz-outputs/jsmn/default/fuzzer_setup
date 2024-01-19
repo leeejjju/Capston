@@ -1,0 +1,6 @@
+# environment variables:
+AFL_CUSTOM_INFO_PROGRAM=./target/jsmn/jsondump
+AFL_CUSTOM_INFO_PROGRAM_ARGV=./target/jsmn/testcases
+AFL_CUSTOM_INFO_OUT=fuzz-outputs//default
+# command line:
+'./AFLplusplus/afl-fuzz' '-i' 'target/jsmn/testcases' '-o' 'fuzz-outputs/' './target/jsmn/jsondump' './target/jsmn/testcases'
