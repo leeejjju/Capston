@@ -1,4 +1,4 @@
-CC = ./AFLplusplus/afl-gcc
+CC = gcc
 FZ = ./AFLplusplus/afl-fuzz 
 OUTPUT = fuzz-outputs/
 .PHONY: r rt rx rb rp rc rr ro test libxml jsmn balance libpng clean
@@ -11,7 +11,6 @@ compile:
 #compile with debug option
 d:
 	$(CC) cimin.c -o run -DDEBUG
-	cp run target/libpng
 
 # FUZZING=============================================================================
 
@@ -38,8 +37,6 @@ rt:
 
 #run with libxml2
 rx:
-	cp target/libpng/crash.png .
-	cp target/libpng/libpng . -r
 	./run -i target/libxml2/testcases/crash.xml -m "SEGV" -o reduced "target/libxml2/xmllint --recover --postvalid -"
 #run with jsmn
 rj:
@@ -49,7 +46,9 @@ rb:
 	./run -i  target/balance/testcases/fail -m "NONE" -o reduced target/balance/balance 
 #run with libpng
 rp: 
-	./run -i crash.png -m use-of-uninitialized-value -o reduced libpng/test_pngfix
+	cp target/libpng/crash.png crashes
+	cp target/libpng/libpng . -r
+	./run -i crashes/crash.png -m use-of-uninitialized-value -o reduced libpng/test_pngfix
 
 rc:
 	cp reduced reduced_crash
