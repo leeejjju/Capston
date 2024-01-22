@@ -1,6 +1,6 @@
 Command line used to find this crash:
 
-./AFLplusplus/afl-fuzz -i target/jsmn/testcases -o fuzz-outputs/ ./target/jsmn/jsondump ./target/jsmn/testcases
+./AFLplusplus/afl-fuzz -i target/jsmn/testcases -o fuzz-outputs/jsmn ./target/jsmn/jsondump ./target/jsmn/testcases
 
 If you can't reproduce a bug outside of afl-fuzz, be sure to set the same
 memory limit. The limit used for this fuzzing session was 0 B.

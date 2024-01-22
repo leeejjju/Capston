@@ -1,6 +1,7 @@
-CC = gcc
+CC = ./AFLplusplus/afl-gcc
+#CC = gcc
 FZ = ./AFLplusplus/afl-fuzz 
-OUTPUT = fuzz-outputs/
+OUTPUT = fuzz-outputs
 .PHONY: r rt rx rb rp rc rr ro test libxml jsmn balance libpng clean
 
 compile:
@@ -15,6 +16,11 @@ d:
 # FUZZING=============================================================================
 
 #compile 
+#idk...
+
+#has error
+fr: 
+	$(FZ) -i crashes/test -o $(OUTPUT)/test -- ./run -i crashes/test/test_crash -m "JJ" -o reduced test 0 crashes/test
 fj:
 	$(FZ) -i target/jsmn/testcases -o $(OUTPUT)/jsmn ./target/jsmn/jsondump ./target/jsmn/testcases
 
@@ -29,11 +35,11 @@ fp:
 
 #run with test input
 r: 
-	./run -i crashes/test_crash -m "JJ" -o reduced test 0
+	./run -i crashes/test/test_crash -m "JJ" -o reduced test 0
 
 #run with test input : timeout case
 rt:
-	./run -i crashes/test_crash -m "JJ" -o reduced test 4
+	./run -i crashes/test/test_crash -m "JJ" -o reduced test 4
 
 #run with libxml2
 rx:

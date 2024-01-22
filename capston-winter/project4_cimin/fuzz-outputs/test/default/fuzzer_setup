@@ -1,0 +1,6 @@
+# environment variables:
+AFL_CUSTOM_INFO_PROGRAM=./run
+AFL_CUSTOM_INFO_PROGRAM_ARGV=-i crashes/test/test_crash -m JJ -o reduced test 0 crashes/test
+AFL_CUSTOM_INFO_OUT=fuzz-outputs/test/default
+# command line:
+'./AFLplusplus/afl-fuzz' '-i' 'crashes/test' '-o' 'fuzz-outputs/test' '--' './run' '-i' 'crashes/test/test_crash' '-m' 'JJ' '-o' 'reduced' 'test' '0' 'crashes/test'
