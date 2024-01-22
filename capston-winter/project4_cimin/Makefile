@@ -29,11 +29,11 @@ fp:
 
 #run with test input
 r: 
-	./run -i test_crash -m "JJ" -o reduced test 0
+	./run -i crashes/test_crash -m "JJ" -o reduced test 0
 
 #run with test input : timeout case
 rt:
-	./run -i test_crash -m "JJ" -o reduced test 4
+	./run -i crashes/test_crash -m "JJ" -o reduced test 4
 
 #run with libxml2
 rx:
