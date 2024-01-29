@@ -1,5 +1,5 @@
-CC = ./AFLplusplus/afl-gcc
-#CC = gcc
+#CC = ./AFLplusplus/afl-gcc
+CC = gcc
 FZ = ./AFLplusplus/afl-fuzz 
 OUTPUT = fuzz-outputs
 .PHONY: r rt rx rb rp rc rr ro test libxml jsmn balance libpng clean
@@ -80,4 +80,5 @@ libpng:
 	libpng/test_pngfix < crash.png
 
 clean:
-	rm -f run test
+	rm -f run test crashes/crash.png
+	rm -rf libpng
