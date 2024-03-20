@@ -30,8 +30,8 @@ void *func1(void *arg) {
         shared1++;
 		shared2++;
         printf("Thread %d: using shared data %d and %d\n", thread_id, shared1, shared2);
-        pthread_mutex_unlock(&mtx1);
         pthread_mutex_unlock(&mtx2);
+        pthread_mutex_unlock(&mtx1);
 
         sleep(2);
     }
@@ -48,8 +48,8 @@ void *func2(void *arg) {
         shared1++;
 		shared2++;
         printf("Thread %d: using shared data %d and %d\n", thread_id, shared1, shared2);
-        pthread_mutex_unlock(&mtx2);
         pthread_mutex_unlock(&mtx1);
+        pthread_mutex_unlock(&mtx2);
 
         sleep(2);
     }
